@@ -255,8 +255,14 @@ def main():
         module.fail_json(rc=257, msg='Path %s does not exist !' % path)
     else:
         try:
-            with open(path, 'rb') as f:
-                contents = to_text(f.read(), errors='surrogate_or_strict', encoding=encoding)
+            if module.params['encoding'] != 'utf-8':
+              file_encoding = module.params['encoding']
+              with open(path, 'rt', encoding=file_encoding) as f:
+                  lines = f.readlines()
+                  b_lines = [bytes(s, 'utf-8') for s in lines]   
+            else:
+              with open(path, 'rb') as f:
+                  contents = to_text(f.read(), errors='surrogate_or_strict', encoding=encoding)
         except (OSError, IOError) as e:
             module.fail_json(msg='Unable to read the contents of %s: %s' % (path, to_text(e)),
                              exception=format_exc())
@@ -271,7 +277,12 @@ def main():
 
     if pattern:
         section_re = re.compile(pattern, re.DOTALL)
+        #Handling non utf encodings
+        if module.params['encoding'] != 'utf-8':
+          contents= ''.join([line.decode('utf-8') for line in b_lines]) 
+
         match = re.search(section_re, contents)
+        print('match:',match)
         if match:
             section = match.group('subsection')
             indices = [match.start('subsection'), match.end('subsection')]
@@ -280,7 +291,12 @@ def main():
             res_args['changed'] = False
             module.exit_json(**res_args)
     else:
-        section = contents
+        if module.params['encoding'] != 'utf-8':
+          #Converting list of string or bytes to string
+          section = ''.join([line.decode('utf-8') for line in b_lines]) 
+        else:
+          section = contents    
+
 
     mre = re.compile(params['regexp'], re.MULTILINE)
     try:
