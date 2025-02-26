@@ -191,8 +191,15 @@ from ansible.module_utils.basic import AnsibleModule
 def write_changes(module, contents, path):
 
     tmpfd, tmpfile = tempfile.mkstemp(dir=module.tmpdir)
-    with os.fdopen(tmpfd, 'wb') as f:
-        f.write(contents)
+    
+    if module.params['encoding'] != 'utf-8':
+        file_encoding = module.params['encoding']
+        with os.fdopen(tmpfd, 'w', encoding=file_encoding) as f:
+          #f.write(contents.decode(file_encoding))
+          f.writelines(contents.decode(file_encoding).splitlines(True))
+    else:
+        with os.fdopen(tmpfd, 'wb') as f:
+          f.write(contents)
 
     validate = module.params.get('validate', None)
     valid = not validate
@@ -259,7 +266,7 @@ def main():
               file_encoding = module.params['encoding']
               with open(path, 'rt', encoding=file_encoding) as f:
                   lines = f.readlines()
-                  b_lines = [bytes(s, 'utf-8') for s in lines]   
+                  b_lines = [bytes(s, file_encoding) for s in lines]   
             else:
               with open(path, 'rb') as f:
                   contents = to_text(f.read(), errors='surrogate_or_strict', encoding=encoding)
@@ -279,7 +286,8 @@ def main():
         section_re = re.compile(pattern, re.DOTALL)
         #Handling non utf encodings
         if module.params['encoding'] != 'utf-8':
-          contents= ''.join([line.decode('utf-8') for line in b_lines]) 
+          file_encoding=module.params['encoding']
+          contents= ''.join([line.decode(file_encoding) for line in b_lines])
 
         match = re.search(section_re, contents)
         print('match:',match)
@@ -293,7 +301,8 @@ def main():
     else:
         if module.params['encoding'] != 'utf-8':
           #Converting list of string or bytes to string
-          section = ''.join([line.decode('utf-8') for line in b_lines]) 
+          file_encoding=module.params['encoding']
+          section = ''.join([line.decode(file_encoding) for line in b_lines]) 
         else:
           section = contents    
 
