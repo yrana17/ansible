@@ -189,14 +189,11 @@ from ansible.module_utils.basic import AnsibleModule
 
 
 def write_changes(module, contents, path):
-
     tmpfd, tmpfile = tempfile.mkstemp(dir=module.tmpdir)
     
     if module.params['encoding'] != 'utf-8':
-        file_encoding = module.params['encoding']
-        with os.fdopen(tmpfd, 'w', encoding=file_encoding) as f:
-          #f.write(contents.decode(file_encoding))
-          f.writelines(contents.decode(file_encoding).splitlines(True))
+        with os.fdopen(tmpfd, 'w', encoding=module.params['encoding']) as f:
+          f.writelines(contents.decode(module.params['encoding']).splitlines(True))
     else:
         with os.fdopen(tmpfd, 'wb') as f:
           f.write(contents)
@@ -263,10 +260,9 @@ def main():
     else:
         try:
             if module.params['encoding'] != 'utf-8':
-              file_encoding = module.params['encoding']
-              with open(path, 'rt', encoding=file_encoding) as f:
+              with open(path, 'rt', encoding=encoding) as f:
                   lines = f.readlines()
-                  b_lines = [bytes(s, file_encoding) for s in lines]   
+                  b_lines = [bytes(s, encoding) for s in lines]   
             else:
               with open(path, 'rb') as f:
                   contents = to_text(f.read(), errors='surrogate_or_strict', encoding=encoding)
@@ -284,13 +280,10 @@ def main():
 
     if pattern:
         section_re = re.compile(pattern, re.DOTALL)
-        #Handling non utf encodings
         if module.params['encoding'] != 'utf-8':
-          file_encoding=module.params['encoding']
-          contents= ''.join([line.decode(file_encoding) for line in b_lines])
+          contents= ''.join([line.decode(encoding) for line in b_lines])
 
         match = re.search(section_re, contents)
-        print('match:',match)
         if match:
             section = match.group('subsection')
             indices = [match.start('subsection'), match.end('subsection')]
@@ -300,9 +293,7 @@ def main():
             module.exit_json(**res_args)
     else:
         if module.params['encoding'] != 'utf-8':
-          #Converting list of string or bytes to string
-          file_encoding=module.params['encoding']
-          section = ''.join([line.decode(file_encoding) for line in b_lines]) 
+          section = ''.join([line.decode(encoding) for line in b_lines]) 
         else:
           section = contents    
 
