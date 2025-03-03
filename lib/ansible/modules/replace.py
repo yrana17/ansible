@@ -192,8 +192,9 @@ def write_changes(module, contents, path):
     tmpfd, tmpfile = tempfile.mkstemp(dir=module.tmpdir)
     
     if module.params['encoding'] != 'utf-8':
+        final_content=to_text(contents)
         with os.fdopen(tmpfd, 'w', encoding=module.params['encoding']) as f:
-          f.writelines(contents.decode(module.params['encoding']).splitlines(True))
+          f.write(final_content)            
     else:
         with os.fdopen(tmpfd, 'wb') as f:
           f.write(contents)
@@ -261,8 +262,9 @@ def main():
         try:
             if module.params['encoding'] != 'utf-8':
               with open(path, 'rt', encoding=encoding) as f:
-                  lines = f.readlines()
-                  b_lines = [bytes(s, encoding) for s in lines]   
+                  #lines = f.readlines()
+                  #b_lines = [bytes(s, 'utf-8') for s in lines]   
+                  contents = to_text(f.read(), errors='surrogate_or_strict',encoding='utf-8')
             else:
               with open(path, 'rb') as f:
                   contents = to_text(f.read(), errors='surrogate_or_strict', encoding=encoding)
@@ -280,8 +282,8 @@ def main():
 
     if pattern:
         section_re = re.compile(pattern, re.DOTALL)
-        if module.params['encoding'] != 'utf-8':
-          contents= ''.join([line.decode(encoding) for line in b_lines])
+        #if module.params['encoding'] != 'utf-8':
+        #  contents= ''.join([line.decode('utf-8') for line in b_lines])
 
         match = re.search(section_re, contents)
         if match:
@@ -292,10 +294,10 @@ def main():
             res_args['changed'] = False
             module.exit_json(**res_args)
     else:
-        if module.params['encoding'] != 'utf-8':
-          section = ''.join([line.decode(encoding) for line in b_lines]) 
-        else:
-          section = contents    
+        # if module.params['encoding'] != 'utf-8':
+        #   section = ''.join([line.decode('utf-8') for line in b_lines]) 
+        # else:
+        section = contents    
 
 
     mre = re.compile(params['regexp'], re.MULTILINE)
@@ -326,7 +328,9 @@ def main():
             res_args['backup_file'] = module.backup_local(path)
         # We should always follow symlinks so that we change the real file
         path = os.path.realpath(path)
-        write_changes(module, to_bytes(result[0], encoding=encoding), path)
+
+        #write_changes(module, to_bytes(result[0],encoding=encoding), path)
+        write_changes(module, to_bytes(result[0]), path)
 
     res_args['msg'], res_args['changed'] = check_file_attrs(module, changed, msg)
     module.exit_json(**res_args)
