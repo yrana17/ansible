@@ -194,14 +194,19 @@ import os
 import tempfile
 from ansible.module_utils.six import b
 from ansible.module_utils.basic import AnsibleModule
-from ansible.module_utils.common.text.converters import to_bytes, to_native
+from ansible.module_utils.common.text.converters import to_bytes, to_native, to_text
 
 
 def write_changes(module, contents, path):
 
     tmpfd, tmpfile = tempfile.mkstemp(dir=module.tmpdir)
-    with os.fdopen(tmpfd, 'wb') as tf:
-        tf.write(contents)
+    
+    if module.params['encoding']:
+        with os.fdopen(tmpfd, 'w',encoding=module.params['encoding'],errors='replace') as tf:
+          tf.write(to_text(contents,errors='replace'))
+    else:
+        with os.fdopen(tmpfd, 'wb') as tf:
+          tf.write(contents)    
 
     validate = module.params.get('validate', None)
     valid = not validate
@@ -246,6 +251,7 @@ def main():
             marker_end=dict(type='str', default='END'),
             append_newline=dict(type='bool', default=False),
             prepend_newline=dict(type='bool', default=False),
+            encoding=dict(type='str'),
         ),
         mutually_exclusive=[['insertbefore', 'insertafter']],
         add_file_common_args=True,
@@ -253,6 +259,7 @@ def main():
     )
     params = module.params
     path = params['path']
+    encoding=params['encoding']
 
     if os.path.isdir(path):
         module.fail_json(rc=256,
@@ -274,9 +281,14 @@ def main():
         original = None
         lines = []
     else:
-        with open(path, 'rb') as f:
-            original = f.read()
-        lines = original.splitlines(True)
+        if  module.params['encoding']:
+            with open(path, 'r',encoding=encoding) as f:
+                original = f.readline()
+                lines = [bytes(s, 'utf-8') for s in original]
+        else:
+            with open(path, 'rb') as f:
+                original = f.read()
+                lines = original.splitlines(True)      
 
     diff = {'before': '',
             'after': '',
