@@ -283,7 +283,7 @@ def main():
     else:
         if  module.params['encoding']:
             with open(path, 'r',encoding=encoding) as f:
-                original = f.readline()
+                original = f.readlines()
                 lines = [bytes(s, 'utf-8') for s in original]
         else:
             with open(path, 'rb') as f:
