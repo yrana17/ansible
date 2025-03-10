@@ -401,12 +401,6 @@ def main():
     if module._diff:
         diff['after'] = result
 
-    #convert original variable type to bytes
-    # if  module.params['encoding']:
-    #     if original is not None:
-    #       bytes_object = ''.join(original).encode('utf-8')
-    #       original=bytes_object
-
     if original == result:
         msg = ''
         changed = False
