@@ -334,6 +334,12 @@ def main():
         if line == marker1:
             n1 = i
 
+     #convert original variable type to bytes
+    if  module.params['encoding']:
+        if original is not None:
+          bytes_object = ''.join(original).encode('utf-8')
+          original=bytes_object        
+
     if None in (n0, n1):
         n0 = None
         if insertre is not None:
@@ -396,10 +402,10 @@ def main():
         diff['after'] = result
 
     #convert original variable type to bytes
-    if  module.params['encoding']:
-        if original is not None:
-          bytes_object = ''.join(original).encode('utf-8')
-          original=bytes_object
+    # if  module.params['encoding']:
+    #     if original is not None:
+    #       bytes_object = ''.join(original).encode('utf-8')
+    #       original=bytes_object
 
     if original == result:
         msg = ''
