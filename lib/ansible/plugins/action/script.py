@@ -119,7 +119,8 @@ class ActionModule(ActionBase):
             # transfer the file to a remote tmp location
             tmp_src = self._connection._shell.join_path(self._connection._shell.tmpdir,
                                                         os.path.basename(source))
-
+            
+            
             # Convert raw_params to text for the purpose of replacing the script since
             # parts and tmp_src are both unicode strings and raw_params will be different
             # depending on Python version.
@@ -130,6 +131,12 @@ class ActionModule(ActionBase):
             target_command = to_text(raw_params).strip().replace(parts[0], tmp_src)
 
             self._transfer_file(source, tmp_src)
+
+            chtag_command = f'chtag -tc 819 "{tmp_src}"'
+            chtag_result = self._low_level_execute_command(chtag_command, sudoable=True)
+
+            if chtag_result.get('rc', 0) != 0:
+               result['msg'] = f"Failed to set file tag with chtag: {chtag_result.get('stderr', '')}"
 
             # set file permissions, more permissive when the copy is done as a different user
             self._fixup_perms2((self._connection._shell.tmpdir, tmp_src), execute=True)
