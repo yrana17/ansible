@@ -185,7 +185,7 @@ class ActionModule(ActionBase):
             python_executable_result = self._low_level_execute_command(cmd=python_executable_command, sudoable=True)
             
             if python_executable_result.get('rc', 0) != 0:
-               result['msg'] = f"Failed to execute python read write code: {python_executable_result.get('stderr', '')}"
+               result['msg'] = f"Getting error: {python_executable_result.get('stderr', '')} in executing python command: {python_executable_command} "
 
             # set file permissions, more permissive when the copy is done as a different user
             self._fixup_perms2((self._connection._shell.tmpdir, tmp_src), execute=True)
