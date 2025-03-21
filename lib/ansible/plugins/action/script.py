@@ -19,9 +19,12 @@ from __future__ import annotations
 import os
 import re
 import shlex
+import tempfile
+import uuid
 
 from ansible.errors import AnsibleError, AnsibleAction, _AnsibleActionDone, AnsibleActionFail, AnsibleActionSkip
 from ansible.executor.powershell import module_manifest as ps_manifest
+from ansible.template import Templar
 from ansible.module_utils.common.text.converters import to_bytes, to_native, to_text
 from ansible.plugins.action import ActionBase
 
@@ -132,11 +135,57 @@ class ActionModule(ActionBase):
 
             self._transfer_file(source, tmp_src)
 
-            chtag_command = f'chtag -tc 819 "{tmp_src}"'
-            chtag_result = self._low_level_execute_command(chtag_command, sudoable=True)
+            # set file permissions, more permissive when the copy is done as a different user
+            self._fixup_perms2((self._connection._shell.tmpdir, tmp_src), execute=True)
 
-            if chtag_result.get('rc', 0) != 0:
-               result['msg'] = f"Failed to set file tag with chtag: {chtag_result.get('stderr', '')}"
+            #Fetch ansible_python_interpreter variable value from the task_vars dictionary.
+            python_interpreter_template = task_vars.get('ansible_python_interpreter')
+
+            # Perform variable interpolation
+            templar = Templar(loader=self._loader, variables=task_vars)
+            python_interpreter = templar.template(python_interpreter_template)
+
+            #python read write code in text mode
+            python_code = "import sys\n" \
+              "def process_data(tmp_src):\n" \
+              "    with open(tmp_src,'r') as f:\n" \
+              "        original=f.readlines()\n" \
+              "\n" \
+              "    with open(tmp_src,'w') as wd:\n" \
+              "        wd.write(''.join(original))\n" \
+              "\n" \
+              "if __name__ == \"__main__\":\n" \
+              "    input_value = sys.argv[1]\n" \
+              "    process_data(input_value)\n"
+
+            file_extension='.py'
+            # Create a temporary directory
+            temp_dir = tempfile.mkdtemp()    
+            # Generate a random file name
+            random_file_name = f"{uuid.uuid4()}{file_extension}"
+            # Construct the full file path
+            local_file_path = os.path.join(temp_dir, random_file_name)
+
+            with open(local_file_path, 'w') as f:
+                f.write(python_code)
+
+            #temporary source python code file path
+            tmp_src_python = self._connection._shell.join_path(self._connection._shell.tmpdir,
+                                                        random_file_name)
+
+            self._transfer_file(local_file_path, tmp_src_python)
+
+            # set file permissions, more permissive when the copy is done as a different user
+            self._fixup_perms2((self._connection._shell.tmpdir, tmp_src_python), execute=True)
+
+            #python executable command
+            python_executable_command = f'"{python_interpreter}" "{tmp_src_python}" "{tmp_src.replace("\"", "\\\"")}"'
+
+            #execute python command to rewrite transferred source script file in text mode
+            python_executable_result = self._low_level_execute_command(cmd=python_executable_command, sudoable=True)
+            
+            if python_executable_result.get('rc', 0) != 0:
+               result['msg'] = f"Failed to execute python read write code: {python_executable_result.get('stderr', '')}"
 
             # set file permissions, more permissive when the copy is done as a different user
             self._fixup_perms2((self._connection._shell.tmpdir, tmp_src), execute=True)
