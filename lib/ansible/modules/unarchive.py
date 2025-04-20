@@ -285,6 +285,7 @@ INVALID_GROUP_RE = re.compile(r': Invalid group')
 SYMLINK_DIFF_RE = re.compile(r': Symlink differs$')
 CONTENT_DIFF_RE = re.compile(r': Contents differ$')
 SIZE_DIFF_RE = re.compile(r': Size differs$')
+USS_MISSING_FILE_RE = re.compile(r': Warning: Cannot stat: EDC5129I No such file or directory.')
 
 
 @cache
@@ -918,7 +919,7 @@ class TgzArchive(object):
             differ_regexes = [
                 MOD_TIME_DIFF_RE, MISSING_FILE_RE, INVALID_OWNER_RE,
                 INVALID_GROUP_RE, SYMLINK_DIFF_RE, CONTENT_DIFF_RE,
-                SIZE_DIFF_RE
+                SIZE_DIFF_RE,USS_MISSING_FILE_RE
             ]
             for regex in differ_regexes:
                 if regex.search(line):
