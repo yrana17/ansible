@@ -184,6 +184,7 @@ class PosixConfig(HostConfig, metaclass=abc.ABCMeta):
     """Base class for POSIX host configuration."""
 
     python: t.Optional[PythonConfig] = None
+    env_v: t.Optional[str] = None
 
     @property
     @abc.abstractmethod
