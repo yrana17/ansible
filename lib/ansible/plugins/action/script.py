@@ -144,14 +144,16 @@ class ActionModule(ActionBase):
             # Perform variable interpolation
             templar = Templar(loader=self._loader, variables=task_vars)
             python_interpreter = templar.template(python_interpreter_template)
-
+                
             #python read write code in text mode
-            python_code = "import sys\n" \
+            python_code = "import sys,platform\n" \
               "def process_data(tmp_src):\n" \
               "    with open(tmp_src,'r') as f:\n" \
               "        original=f.readlines()\n" \
               "\n" \
-              "    with open(tmp_src,'w') as wd:\n" \
+              "    write_encoding = 'cp1047' if platform.system() in ('OS/390', 'z/OS') else None\n" \
+              "\n" \
+              "    with open(tmp_src,'w',encoding=write_encoding) as wd:\n" \
               "        wd.write(''.join(original))\n" \
               "\n" \
               "if __name__ == \"__main__\":\n" \
