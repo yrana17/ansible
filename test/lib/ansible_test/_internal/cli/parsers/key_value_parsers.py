@@ -229,10 +229,7 @@ class PosixSshKeyValueParser(KeyValueParser):
         """Return a dictionary of key names and value parsers."""
         return dict(
             python=PythonParser(versions=list(SUPPORTED_PYTHON_VERSIONS), allow_venv=False, allow_default=False),
-            # env_v = AnyParser()
-            env_v = FileParser()
-            # env_v=ChoicesParser(['a','b','c'])
-            
+            env_v = FileParser()   
         )
 
     def document(self, state: DocumentationState) -> t.Optional[str]:
@@ -243,7 +240,7 @@ class PosixSshKeyValueParser(KeyValueParser):
 
         state.sections[f'target {section_name} (comma separated):'] = '\n'.join([
             f'  python={python_parser.document(state)}',
-            f'  env_v=env.json',
+            f'  env_v=env.json   #relative or absolute path of environment json file',
         ])
 
         return f'{{{section_name}}}'

@@ -411,13 +411,7 @@ def command_integration_filtered(
     found = False
     passed = []
     failed = []
-
-    # print(f'############################################################################################################')
-    # print(f' ')
-    # print(f'############################################################################################################')   
-    # print(args.targets[0].env_v) 
-
-
+ 
     targets_iter = iter(targets)
     all_targets_dict = dict((target.name, target) for target in all_targets)
 
@@ -689,9 +683,6 @@ def command_integration_role(
             module_defaults=env_config.module_defaults,
         ), indent=4, sort_keys=True), verbosity=3)
 
-
-    import json
-    
     with integration_test_environment(args, target, inventory_path) as test_env:  # type: IntegrationEnvironment
         if os.path.exists(test_env.vars_file):
             vars_files.append(os.path.relpath(test_env.vars_file, test_env.integration_dir))
@@ -704,11 +695,7 @@ def command_integration_role(
             roles=[
                 target.name,
             ],
-            # environment=args.targets[0].env_v
-            # **({'environment': args.targets[0].env_v} if args.targets[0].env_v is not None else {})
             **({'environment': json.load(open(args.targets[0].env_v, 'r')) } if args.targets[0].env_v else {})
-
-            # next((json.loads(f.read()) for f in [open(args.targets[0].env_v, 'r')] if args.targets[0].env_v), None)
         )
 
         if env_config:
