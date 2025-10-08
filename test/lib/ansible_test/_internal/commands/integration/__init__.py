@@ -687,6 +687,13 @@ def command_integration_role(
         if os.path.exists(test_env.vars_file):
             vars_files.append(os.path.relpath(test_env.vars_file, test_env.integration_dir))
 
+        #Global env variables are passed --env key=val
+        if args.env:    
+            # env_vars_dict = {k: v for item in args.env for k, v in [item.split('=', 1)]}   # Parses the list of strings  
+            # json_output = json.dumps(env_vars_dict) # convert into json formatted string
+            # env_dict = json.loads(json_output) # convert back to dictionary
+            env_dict = {k: v for item in args.env for k, v in [item.split('=', 1)]}
+
         play = dict(
             hosts=hosts,
             gather_facts=gather_facts,
@@ -695,7 +702,10 @@ def command_integration_role(
             roles=[
                 target.name,
             ],
-            **({'environment': json.load(open(args.targets[0].env_v, 'r')) } if args.targets[0].env_v else {})
+            #environment=args.targets[0].env_v
+            #**({'environment': json.load(open(args.targets[0].env_v, 'r')) } if args.targets[0].env_v else {})
+
+            **({'environment': env_dict} if args.env else {})
         )
 
         if env_config:

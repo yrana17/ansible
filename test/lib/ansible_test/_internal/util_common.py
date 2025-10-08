@@ -185,6 +185,8 @@ class CommonConfig:
 
         self.cache: dict[str, t.Any] = {}
 
+        self.env: dict[str, t.Any] = args.env
+
     def get_ansible_config(self) -> str:
         """Return the path to the Ansible config for the given config."""
         return os.path.join(ANSIBLE_TEST_DATA_ROOT, 'ansible.cfg')

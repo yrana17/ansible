@@ -222,6 +222,16 @@ def do_commands(
         help=argparse.SUPPRESS,
     )
 
+    env_vars = test.add_argument_group(title='environment variables')
+
+    env_vars.add_argument(
+        '--env',
+        dest='env',
+        nargs='+',
+        type=str,
+        help='one or more env variables in key value pair: --env key1=val1 key2=val2'
+    )
+
     subparsers = parent.add_subparsers(metavar='COMMAND', required=True)
 
     do_coverage(subparsers, common, completer)
