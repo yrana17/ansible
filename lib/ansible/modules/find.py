@@ -162,6 +162,19 @@ options:
             - Default is unlimited matches.
         type: int
         version_added: "2.18"
+    start_date:
+        description:
+            - Select files whose selected timestamp (age_stamp) is on or after this date.
+            - Format should be YYYY-MM-DD.
+        type: str
+        version_added: '2.20'
+    end_date:
+        description:
+            - Select files whose selected timestamp (age_stamp) is on or before this date.
+            - Format should be YYYY-MM-DD.
+            - This filter is inclusive of the entire day specified.
+        type: str
+        version_added: '2.20'        
 extends_documentation_fragment: [action_common_attributes, checksum_common]
 attributes:
     check_mode:
@@ -291,6 +304,8 @@ import time
 
 from ansible.module_utils.common.text.converters import to_text, to_native
 from ansible.module_utils.basic import AnsibleModule
+
+from datetime import datetime
 
 
 class _Object:
@@ -463,6 +478,33 @@ def statinfo(st):
         'isgid': bool(st.st_mode & stat.S_ISGID),
     }
 
+def date_range_filter(st, start_date, end_date, timestamp_type):
+    """Filter files within a specific absolute date range."""
+    if not start_date and not end_date:
+        return True
+
+    file_ts = getattr(st, "st_%s" % timestamp_type)
+
+    if start_date:
+        try:
+            # Start of the day (00:00:00)
+            start_ts = datetime.strptime(start_date, "%Y-%m-%d").timestamp()
+            if file_ts < start_ts:
+                return False
+        except ValueError:
+            raise Exception(f"Invalid start_date format: {start_date}. Use YYYY-MM-DD.")
+
+    if end_date:
+        try:
+            # End of the day (23:59:59)
+            end_ts = datetime.strptime(end_date, "%Y-%m-%d").timestamp() + 86399
+            if file_ts > end_ts:
+                return False
+        except ValueError:
+            raise Exception(f"Invalid end_date format: {end_date}. Use YYYY-MM-DD.")
+
+    return True
+
 
 def main():
     module = AnsibleModule(
@@ -488,7 +530,10 @@ def main():
             mode=dict(type='raw'),
             exact_mode=dict(type='bool', default=True),
             encoding=dict(type='str'),
-            limit=dict(type='int')
+            limit=dict(type='int'),
+
+            start_date=dict(type='str'),
+            end_date=dict(type='str')
         ),
         supports_check_mode=True,
     )
@@ -577,7 +622,15 @@ def main():
                         continue
 
                     r = {'path': fsname}
-                    if params['file_type'] == 'any':
+
+                    common_filters = (
+                        pfilter(fsobj, params['patterns'], params['excludes'], params['use_regex']) and
+                        agefilter(st, now, age, params['age_stamp']) and
+                        date_range_filter(st, params['start_date'], params['end_date'], params['age_stamp']) and
+                        mode_filter(st, params['mode'], params['exact_mode'], module)
+                    )
+
+                    if params['file_type'] == 'any' and common_filters:
                         if (pfilter(fsobj, params['patterns'], params['excludes'], params['use_regex']) and
                                 agefilter(st, now, age, params['age_stamp']) and
                                 mode_filter(st, params['mode'], params['exact_mode'], module)):
@@ -592,7 +645,7 @@ def main():
                             else:
                                 filelist.append(r)
 
-                    elif stat.S_ISDIR(st.st_mode) and params['file_type'] == 'directory':
+                    elif stat.S_ISDIR(st.st_mode) and params['file_type'] == 'directory' and common_filters:
                         if (pfilter(fsobj, params['patterns'], params['excludes'], params['use_regex']) and
                                 agefilter(st, now, age, params['age_stamp']) and
                                 mode_filter(st, params['mode'], params['exact_mode'], module)):
@@ -600,7 +653,7 @@ def main():
                             r.update(statinfo(st))
                             filelist.append(r)
 
-                    elif stat.S_ISREG(st.st_mode) and params['file_type'] == 'file':
+                    elif stat.S_ISREG(st.st_mode) and params['file_type'] == 'file' and common_filters:
                         if (pfilter(fsobj, params['patterns'], params['excludes'], params['use_regex']) and
                                 agefilter(st, now, age, params['age_stamp']) and
                                 sizefilter(st, size) and
@@ -612,7 +665,7 @@ def main():
                                 r['checksum'] = module.digest_from_file(fsname, params['checksum_algorithm'])
                             filelist.append(r)
 
-                    elif stat.S_ISLNK(st.st_mode) and params['file_type'] == 'link':
+                    elif stat.S_ISLNK(st.st_mode) and params['file_type'] == 'link' and common_filters:
                         if (pfilter(fsobj, params['patterns'], params['excludes'], params['use_regex']) and
                                 agefilter(st, now, age, params['age_stamp']) and
                                 mode_filter(st, params['mode'], params['exact_mode'], module)):
