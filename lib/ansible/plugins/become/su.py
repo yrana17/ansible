@@ -88,6 +88,24 @@ DOCUMENTATION = """
               - name: ansible_su_prompt_l10n
             env:
               - name: ANSIBLE_SU_PROMPT_L10N
+        su_surrogate:
+            description:
+                - Use the z/OS USS surrogate user feature (C(su -s)).
+                - When C(true), C(su) is invoked with the C(-s) flag instead of the standard login sequence.
+                  The login user must already hold READ access to the C(BPX.SRV.<become_user>) SURROGAT
+                  profile in RACF. No password is required, so B(become_pass) is ignored and no password
+                  prompt is expected.
+                - When C(false) (the default), the normal C(su) password prompt flow is used.
+            default: false
+            type: bool
+            version_added: '2.19'
+            ini:
+              - section: su_become_plugin
+                key: surrogate
+            vars:
+              - name: ansible_su_surrogate
+            env:
+              - name: ANSIBLE_SU_SURROGATE
 """
 
 import re
@@ -157,10 +175,6 @@ class BecomeModule(BecomeBase):
     def build_become_command(self, cmd, shell):
         super(BecomeModule, self).build_become_command(cmd, shell)
 
-        # Prompt handling for ``su`` is more complicated, this
-        # is used to satisfy the connection plugin
-        self.prompt = True
-
         if not cmd:
             return cmd
 
@@ -169,4 +183,13 @@ class BecomeModule(BecomeBase):
         user = self.get_option('become_user') or ''
         success_cmd = self._build_success_command(cmd, shell)
 
+        if self.get_option('su_surrogate'):
+            # z/OS USS surrogate-user mode: su -s <user> -c <cmd>
+            # No password is exchanged; suppress prompt handling entirely.
+            self.prompt = False
+            return "%s %s -s %s -c %s" % (exe, flags, user, shlex.quote(success_cmd))
+
+        # Standard su: prompt handling is more complicated; True tells the
+        # connection plugin to watch for a password prompt.
+        self.prompt = True
         return "%s %s %s -c %s" % (exe, flags, user, shlex.quote(success_cmd))
